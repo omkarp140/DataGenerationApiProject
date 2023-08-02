@@ -21,7 +21,6 @@ namespace SF.DataGeneration.Api.Controllers
         public async Task GenerateDocumentsOnBot(DocumentGenerationUserInputDto request, StudioEnvironment environment)
         {
             await _documentGenerationService.GenerateDocumentsOnBot(request, environment);
-
         }
     }
 }

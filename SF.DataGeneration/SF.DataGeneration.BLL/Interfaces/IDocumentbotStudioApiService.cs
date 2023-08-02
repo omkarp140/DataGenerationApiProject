@@ -11,7 +11,7 @@ namespace SF.DataGeneration.BLL.Interfaces
         Task<bool> SendDocumentToBotInStudio(byte[] file, string fileNameWithExtension);
         Task<DocumentSearchResponseDto> SearchForDocumentId(string requestBody);
         Task<DocumentDetailsResponseDto> GetDocumentDetailsFromStudio(Guid documentId);
-        Task UpdateDocumentTaggingInStudio(string request, Guid documentId);        
+        Task<bool> UpdateDocumentTaggingInStudio(string request, Guid documentId);        
         Task<bool> UpdateDocumentStatusAsCompletedInStudio(IEnumerable<Guid> documentIds);
     }
 }

@@ -15,7 +15,7 @@ namespace SF.DataGeneration.Api.Helpers
                 .WriteTo.File(path: @"logs/msg.log", fileSizeLimitBytes: 1_000_000,
                                                      flushToDiskInterval: TimeSpan.FromSeconds(5),
                                                      shared: true,
-                                                     restrictedToMinimumLevel: LogEventLevel.Error)
+                                                     restrictedToMinimumLevel: LogEventLevel.Information)
                 .CreateLogger();
             builder.Host.UseSerilog();
         }

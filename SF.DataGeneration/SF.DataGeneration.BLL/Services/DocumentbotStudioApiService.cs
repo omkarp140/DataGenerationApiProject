@@ -1,5 +1,4 @@
-﻿using Grpc.Core.Logging;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using SF.DataGeneration.BLL.Interfaces;
@@ -23,12 +22,24 @@ namespace SF.DataGeneration.BLL.Services
         private string _apiKey;
 
         public DocumentbotStudioApiService(IOptions<StudioApiBaseUrl> studioApiBaseUrl,
-                                HttpClient httpClient,
-                                ILogger<DocumentbotStudioApiService> logger)
+                                           HttpClient httpClient,
+                                           ILogger<DocumentbotStudioApiService> logger)
         {
             _studioApiBaseUrl = studioApiBaseUrl.Value;
             _httpClient = httpClient;
             _logger = logger;
+        }
+
+        private async Task<HttpResponseMessage> SendHttpRequestAsync(string url, HttpMethod method, HttpContent content = null)
+        {
+            var request = new HttpRequestMessage(method, url);
+
+            if (content != null)
+            {
+                request.Content = content;
+            }
+
+            return await _httpClient.SendAsync(request);
         }
 
         public async Task SetupHttpClientAuthorizationHeaderAndApiUrl(DocumentGenerationUserInputDto req, StudioEnvironment environment)
@@ -60,17 +71,19 @@ namespace SF.DataGeneration.BLL.Services
             string url = $"{_documentbotapibaseurl}/entity/GetDocumentbotEntities?pageNumber=1&pageSize=100&name=&value=0&documentbotId={_documentbotId}";
             var entityResponse = new EntityResponseDto();
 
-            HttpResponseMessage response = _httpClient.GetAsync(url).GetAwaiter().GetResult();
+            HttpResponseMessage response = await SendHttpRequestAsync(url, HttpMethod.Get);
 
             if (response.IsSuccessStatusCode)
             {
                 string responseContent = await response.Content.ReadAsStringAsync();
                 entityResponse = JsonConvert.DeserializeObject<EntityResponseDto>(responseContent);
+                _logger.LogInformation("Entites successfully fetched from bot");
             }
             else
             {
-                Console.WriteLine("Error: " + response.StatusCode);
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
             }
+
             return entityResponse.Result.Records;
         }
 
@@ -88,11 +101,11 @@ namespace SF.DataGeneration.BLL.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    string responseContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation($"{fileNameWithExtension} successfully sent to bot");
                 }
                 else
                 {
-                    Console.WriteLine("Request failed with status code: " + response.StatusCode);
+                    _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
                 }
 
                 return response.IsSuccessStatusCode;
@@ -105,18 +118,19 @@ namespace SF.DataGeneration.BLL.Services
             var searchResponse = new DocumentSearchResponseDto();
 
             using var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-            var response = _httpClient.PostAsync(url, content).GetAwaiter().GetResult();
+            var response = await SendHttpRequestAsync(url, HttpMethod.Post, content);
 
             if (response.IsSuccessStatusCode)
             {
                 string responseContent = await response.Content.ReadAsStringAsync();
                 searchResponse = JsonConvert.DeserializeObject<DocumentSearchResponseDto>(responseContent);
+                _logger.LogInformation("Document search successfully executed");
             }
             else
             {
-                string responseContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine("Error: " + responseContent);
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
             }
+
             return searchResponse;
         }
 
@@ -124,39 +138,41 @@ namespace SF.DataGeneration.BLL.Services
         {
             string url = $"{_documentbotapibaseurl}/Document/{documentId}";
 
-            var response = _httpClient.GetAsync(url).GetAwaiter().GetResult();
+            var response = await SendHttpRequestAsync(url, HttpMethod.Get);
             var result = new DocumentDetailsResponseDto();
 
             if (response.IsSuccessStatusCode)
             {
                 string responseContent = await response.Content.ReadAsStringAsync();
                 result = JsonConvert.DeserializeObject<DocumentDetailsResponseDto>(responseContent);
+                _logger.LogInformation("Document details successfully fetched from bot");
             }
             else
             {
-                string responseContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine("Error: " + response.StatusCode);
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
             }
+
             return result;
         }
 
-        public async Task UpdateDocumentTaggingInStudio(string request, Guid documentId)
+        public async Task<bool> UpdateDocumentTaggingInStudio(string request, Guid documentId)
         {
             string url = $"{_documentbotapibaseurl}/Document/{documentId}/details";
 
             using var requestBody = new StringContent(request);
             requestBody.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            var response = _httpClient.PutAsync(url, requestBody).GetAwaiter().GetResult();
+            var response = await SendHttpRequestAsync(url, HttpMethod.Put, requestBody);
 
             if (response.IsSuccessStatusCode)
             {
-                string responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Document tagging successfully updated");
             }
             else
             {
-                Console.WriteLine("Error: " + response.StatusCode);
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
             }
+            return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> UpdateDocumentStatusAsCompletedInStudio(IEnumerable<Guid> documentIds)
@@ -171,7 +187,7 @@ namespace SF.DataGeneration.BLL.Services
             var jsonRequest = JsonConvert.SerializeObject(requestData);
             var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
 
-            var response = _httpClient.PutAsync(url, content).GetAwaiter().GetResult();
+            var response = await SendHttpRequestAsync(url, HttpMethod.Put, content);
 
             if (response.IsSuccessStatusCode)
             {
@@ -180,7 +196,7 @@ namespace SF.DataGeneration.BLL.Services
             }
             else
             {
-                Console.WriteLine("Error: " + response.StatusCode);
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
                 return false;
             }
         }

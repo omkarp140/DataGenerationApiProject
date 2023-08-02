@@ -6,6 +6,5 @@ namespace SF.DataGeneration.BLL.Interfaces
     public interface IDocumentGenerationService
     {
         Task GenerateDocumentsOnBot(DocumentGenerationUserInputDto request, StudioEnvironment environment);
-
     }
 }

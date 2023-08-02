@@ -14,13 +14,14 @@ namespace SF.DataGeneration.BLL.Services
     public class DocumentGenerationService : IDocumentGenerationService
     {
         private readonly ILogger<DocumentGenerationService> _logger;
-        private readonly IDocumentbotStudioApiService _documentbotStudioApiService;
+        private readonly IDocumentbotStudioApiService _documentbotStudioApiService;        
 
         public DocumentGenerationService(ILogger<DocumentGenerationService> logger,
                                          IDocumentbotStudioApiService documentbotStudioApiService)
         {
             _logger = logger;
             _documentbotStudioApiService = documentbotStudioApiService;
+            License.LicenseKey = "IRONPDF.SIMPLIFAIAS.IRO230620.1722.98102-13A32F9432-DQTKC3VXVVK7K-6ZSYIRKXLXU3-SDI2XULXMSAI-337NJMOR2GW3-DYGQTHTSM77G-H2R7HH-LQZH3GPILE6UEA-IRONPDF.DOTNET.UNLIMITED.5YR-WZ6MO5.RENEW.SUPPORT.18.JUN.2028";
         }
 
         public async Task GenerateDocumentsOnBot(DocumentGenerationUserInputDto request, StudioEnvironment environment)
@@ -58,12 +59,14 @@ namespace SF.DataGeneration.BLL.Services
                         {
                             EntityId = entities.Find(e => e.ExcelIndex == col).Id,
                             OldText = worksheet.Cells[row, col].Value.ToString()
-                        });
-
-                        for (int i = 1; i <= request.NoOfDocumentsToCreate; i++)
+                        });                        
+                    }
+                    for (int i = 1; i <= request.NoOfDocumentsToCreate; i++)
+                    {
+                        var documentTaggingResult = await CreateDocumentSendToBotAndUpdateTagging(textReplacementList, AllText, $"{request.DocumentNamePrefix}_{row - 1}_DocTest_{i}.pdf");
+                        if (documentTaggingResult.TaggingApiResponseStatusCode)
                         {
-                            var documentId = await CreateDocumentSendToBotAndUpdateTagging(textReplacementList, AllText, $"{request.DocumentNamePrefix}_{row-1}_DocTest_{i}.pdf");
-                            documentIds.Add(documentId);
+                            documentIds.Add(documentTaggingResult.DocumentId);
                         }
                     }
                 }
@@ -76,7 +79,7 @@ namespace SF.DataGeneration.BLL.Services
             await MarkDocumentsAsCompleted(documentIds);
         }
 
-        private async Task<Guid> CreateDocumentSendToBotAndUpdateTagging(List<TextReplacementHelperDto> textReplacementList, string documentText, string documentName)
+        private async Task<DocumentTaggingResultDto> CreateDocumentSendToBotAndUpdateTagging(List<TextReplacementHelperDto> textReplacementList, string documentText, string documentName)
         {
             foreach(var entity in textReplacementList)
             {
@@ -91,8 +94,12 @@ namespace SF.DataGeneration.BLL.Services
             var botResponse = await _documentbotStudioApiService.SendDocumentToBotInStudio(pdf.BinaryData, documentName);
             var documentDetails = await GetSingleDocumentDetails(documentName);
 
-            await UpdateTaggingOnDocument(textReplacementList,documentDetails.Result);
-            return documentDetails.Result.Id;            
+            var taggingResult = await UpdateTaggingOnDocument(textReplacementList,documentDetails.Result);
+            return new DocumentTaggingResultDto()
+            {
+                DocumentId = documentDetails.Result.Id,
+                TaggingApiResponseStatusCode = taggingResult
+            };            
         }        
 
         private async Task<DocumentDetailsResponseDto> GetSingleDocumentDetails(string documentName)
@@ -103,14 +110,14 @@ namespace SF.DataGeneration.BLL.Services
                 StartDate = DateTime.ParseExact("1999-12-31T18:30:00.000Z", "yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
                 EndDate = DateTime.UtcNow,
                 PageNumber = 1,
-                PageSize = 10,
+                PageSize = 10
             };
 
             var searchResult = await _documentbotStudioApiService.SearchForDocumentId(JsonConvert.SerializeObject(documentSearchRequestDto));
             return await _documentbotStudioApiService.GetDocumentDetailsFromStudio(searchResult.Result.Records[0].Id);
         }
 
-        private async Task UpdateTaggingOnDocument(List<TextReplacementHelperDto> textReplacementList, DocumentDetails documentDetails)
+        private async Task<bool> UpdateTaggingOnDocument(List<TextReplacementHelperDto> textReplacementList, DocumentDetails documentDetails)
         {
             var entities = new List<DocumentEntityTaggedReadDto>();
             var intents = new List<DocumentIntentTaggedReadDto>();
@@ -143,7 +150,7 @@ namespace SF.DataGeneration.BLL.Services
                 }
             };
 
-            await _documentbotStudioApiService.UpdateDocumentTaggingInStudio(JsonConvert.SerializeObject(updateDocumentDetailsRequest), documentDetails.Id);
+            return await _documentbotStudioApiService.UpdateDocumentTaggingInStudio(JsonConvert.SerializeObject(updateDocumentDetailsRequest), documentDetails.Id);
         }
 
         private async Task MarkDocumentsAsCompleted(List<Guid> documentIds)
