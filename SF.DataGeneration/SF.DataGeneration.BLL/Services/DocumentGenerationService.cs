@@ -80,28 +80,36 @@ namespace SF.DataGeneration.BLL.Services
 
             for(int row = 2; row <= worksheet.Dimension.Rows; row++)
             {
-                using var PDFDocument = PdfDocument.FromFile(worksheet.Cells[row, worksheet.Dimension.Columns].Value?.ToString());
-                string AllText = TextHelperService.CleanTextExtractedFromPdf(PDFDocument.ExtractAllText());
+                try
+                {
+                    using var PDFDocument = PdfDocument.FromFile(worksheet.Cells[row, worksheet.Dimension.Columns].Value?.ToString());
+                    string AllText = TextHelperService.CleanTextExtractedFromPdf(PDFDocument.ExtractAllText());
 
-                var textReplacementList = new List<TextReplacementHelperDto>();
-                for (int col = 1; col < worksheet.Dimension.Columns; col++)
-                {
-                    textReplacementList.Add(new TextReplacementHelperDto
+                    var textReplacementList = new List<TextReplacementHelperDto>();
+                    for (int col = 1; col < worksheet.Dimension.Columns; col++)
                     {
-                        EntityId = entities.Find(e => e.ExcelIndex == col).Id,
-                        OldText = worksheet.Cells[row, col].Value.ToString()
-                    });
+                        textReplacementList.Add(new TextReplacementHelperDto
+                        {
+                            EntityId = entities.Find(e => e.ExcelIndex == col).Id,
+                            OldText = worksheet.Cells[row, col].Value.ToString(),
+                            EntityType = entities.Find(e => e.ExcelIndex == col).Name
+                        });
+                    }
+                    for (int i = 1; i <= request.NoOfDocumentsToCreate; i++)
+                    {
+                        var sw1 = Stopwatch.StartNew();
+                        var documentTaggingResult = await RenderDocumentSendToBotAndUpdateTagging(textReplacementList, AllText, $"{request.DocumentNamePrefix}_{row - 1}_DocTest_{i}.pdf");
+                        if (documentTaggingResult.TaggingApiResponseStatusCode)
+                        {
+                            successfullyTaggedDocumentIds.Add(documentTaggingResult.DocumentId);
+                            sw1.Stop();
+                            _logger.LogInformation($"\n\n{request.DocumentNamePrefix}_{row - 1}_DocTest_{i}.pdf - sent to bot and tagged - In {sw1.Elapsed.Seconds} Seconds.\n\n");
+                        }
+                    }
                 }
-                for (int i = 1; i <= request.NoOfDocumentsToCreate; i++)
+                catch (Exception ex)
                 {
-                    var sw1 = Stopwatch.StartNew();
-                    var documentTaggingResult = await RenderDocumentSendToBotAndUpdateTagging(textReplacementList, AllText, $"{request.DocumentNamePrefix}_{row - 1}_DocTest_{i}.pdf");
-                    if (documentTaggingResult.TaggingApiResponseStatusCode)
-                    {
-                        successfullyTaggedDocumentIds.Add(documentTaggingResult.DocumentId);
-                        sw1.Stop();
-                        _logger.LogInformation($"\n\n{request.DocumentNamePrefix}_{row - 1}_DocTest_{i}.pdf - sent to bot and tagged - In {sw1.Elapsed.Seconds} Seconds.\n\n");
-                    }                   
+                    _logger.LogError(ex, $"An error occurred while processing document at RowIndex: {row}");
                 }
             }
             return successfullyTaggedDocumentIds;
@@ -111,7 +119,7 @@ namespace SF.DataGeneration.BLL.Services
         {
             foreach(var entity in textReplacementList)
             {
-                entity.NewText = TextHelperService.GenerateRandomString(entity.OldText);
+                entity.NewText = TextHelperService.GenerateReadbleRandomData(entity.EntityType);
                 documentText = documentText.Replace(entity.OldText, entity.NewText);
             }
 
@@ -150,19 +158,92 @@ namespace SF.DataGeneration.BLL.Services
             var entities = new List<DocumentEntityTaggedReadDto>();
             var intents = new List<DocumentIntentTaggedReadDto>();
 
-            foreach(var item in textReplacementList)
+            var intentWordIds = new List<int>() { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
+
+            string intentValue = "";
+
+            foreach (var wordId in intentWordIds)
+            {
+                intentValue = intentValue + documentDetails.DocumentJson.Pages[0].WordLevel[wordId].Text + documentDetails.DocumentJson.Pages[0].WordLevel[wordId].Space;
+            }
+
+            intents.Add(new DocumentIntentTaggedReadDto()
+            {
+                IntentId = new Guid("c18b3fa8-694e-40d7-baac-bb3ce3ef4035"),
+                WordIds = intentWordIds,
+                TaggedAuthor = 1,
+                DocumentId = documentDetails.Id,
+                Value = intentValue
+            });
+
+            //foreach (var item in textReplacementList)
+            //{
+            //    var wordIds = new List<int>();
+
+            //    wordIds.Add(documentDetails.DocumentJson.Pages[0].WordLevel.Find(w => w.Text == item.NewText).WordId);
+            //    var word = documentDetails.DocumentJson.Pages[0].WordLevel.Find(w => w.Text == item.NewText);
+
+            //    entities.Add(new DocumentEntityTaggedReadDto
+            //    {
+            //        EntityId = item.EntityId,
+            //        WordIds = wordIds,
+            //        Value = word.Text + word.Space,
+            //        TaggedAuthor = 0,
+            //        DocumentId = documentDetails.Id,
+            //    });
+            //}
+
+            foreach (var item in textReplacementList)
             {
                 var wordIds = new List<int>();
 
-                wordIds.Add(documentDetails.DocumentJson.Pages[0].WordLevel.Find(w => w.Text == item.NewText).WordId);
-                var word = documentDetails.DocumentJson.Pages[0].WordLevel.Find(w => w.Text == item.NewText);
+                if (Enum.TryParse(item.EntityType, out RandomDataType dataType))
+                {
+                    switch (dataType)
+                    {
+                        case RandomDataType.Name:
+                            wordIds = new List<int>() { 5 };
+                            break;
+
+                        case RandomDataType.EmailId:
+                            wordIds = new List<int>() { 73, 74, 75, 76, 77, 78, 79 };
+                            break;
+
+                        case RandomDataType.Address:
+                            wordIds = new List<int>() { 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165 };
+                            break;
+
+                        case RandomDataType.Date:
+                            wordIds = new List<int>() { 65, 66, 67, 68, 69 };
+                            break;
+
+                        case RandomDataType.UserId:
+                            wordIds = new List<int>() { 83 };
+                            break;
+
+                        case RandomDataType.MobileNo:
+                            wordIds = new List<int>() { 58, 59, 60 };
+                            break;
+
+                        case RandomDataType.Designation:
+                            wordIds = new List<int>() { 169, 170 };
+                            break;
+                    }
+                }
+
+                string entityValue = "";
+
+                foreach (var wordId in wordIds)
+                {
+                    entityValue = entityValue + documentDetails.DocumentJson.Pages[0].WordLevel[wordId].Text + documentDetails.DocumentJson.Pages[0].WordLevel[wordId].Space;
+                }
 
                 entities.Add(new DocumentEntityTaggedReadDto
                 {
                     EntityId = item.EntityId,
                     WordIds = wordIds,
-                    Value = word.Text + word.Space,
-                    TaggedAuthor = 0,
+                    Value = entityValue,
+                    TaggedAuthor = 1,
                     DocumentId = documentDetails.Id,
                 });
             }
