@@ -5,6 +5,6 @@ namespace SF.DataGeneration.BLL.Interfaces
 {
     public interface IDocumentGenerationService
     {
-        Task GenerateDocumentsOnBot(DocumentGenerationUserInputDto request, StudioEnvironment environment);
+        Task GenerateDocumentsWithExcelData(DocumentGenerationUserInputDto request, StudioEnvironment environment);
     }
 }
