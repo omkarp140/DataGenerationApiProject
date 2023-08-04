@@ -1,11 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Polly;
 using SF.DataGeneration.BLL.Interfaces;
 using SF.DataGeneration.Models.Dto.Document;
 using SF.DataGeneration.Models.Enum;
 using SF.DataGeneration.Models.Settings;
 using SF.DataGeneration.Models.StudioApiModels.ResponseDto;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 
@@ -19,7 +21,7 @@ namespace SF.DataGeneration.BLL.Services
         private string _documentbotapibaseurl;
         private Guid _documentbotId;
         private string _externalApiUrl;
-        private string _apiKey;
+        private string _apiKey;        
 
         public DocumentbotStudioApiService(IOptions<StudioApiBaseUrl> studioApiBaseUrl,
                                            HttpClient httpClient,
@@ -32,14 +34,29 @@ namespace SF.DataGeneration.BLL.Services
 
         private async Task<HttpResponseMessage> SendHttpRequestAsync(string url, HttpMethod method, HttpContent content = null)
         {
-            var request = new HttpRequestMessage(method, url);
+            var result = new HttpResponseMessage();
+            var retryPolicy = Policy
+                                .Handle<HttpRequestException>((e) => e.StatusCode != HttpStatusCode.BadRequest && e.StatusCode != HttpStatusCode.Unauthorized)
+                                .Or<Exception>()
+                                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt)));
 
-            if (content != null)
+            await retryPolicy.ExecuteAsync(async () =>
             {
-                request.Content = content;
-            }
+                var request = new HttpRequestMessage(method, url);
 
-            return await _httpClient.SendAsync(request);
+                if (content != null)
+                {
+                    request.Content = content;
+                }
+
+                var response = await _httpClient.SendAsync(request);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    result = response;
+                }
+            });
+            return result;
         }
 
         public async Task SetupHttpClientAuthorizationHeaderAndApiUrl(DocumentGenerationUserInputDto req, StudioEnvironment environment)
@@ -89,27 +106,36 @@ namespace SF.DataGeneration.BLL.Services
 
         public async Task<bool> SendDocumentToBotInStudio(byte[] file, string fileNameWithExtension)
         {
-            using (HttpClient client = new HttpClient())
+            var result = false;
+            var retryPolicy = Policy
+                                 .Handle<HttpRequestException>((e) => e.StatusCode != HttpStatusCode.BadRequest && e.StatusCode != HttpStatusCode.Unauthorized)
+                                 .Or<Exception>()
+                                 .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(3, retryAttempt)));
+
+            await retryPolicy.ExecuteAsync(async () =>
             {
-                client.DefaultRequestHeaders.Add("x-api-key", _apiKey);
-
-                using var formData = new MultipartFormDataContent();
-                using var fileContent = new StreamContent(new MemoryStream(file));
-
-                formData.Add(fileContent, "files", fileNameWithExtension);
-                var response = client.PostAsync(_externalApiUrl, formData).GetAwaiter().GetResult();
-
-                if (response.IsSuccessStatusCode)
+                using (HttpClient client = new HttpClient())
                 {
-                    _logger.LogInformation($"{fileNameWithExtension} successfully sent to bot");
-                }
-                else
-                {
-                    _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
-                }
+                    client.DefaultRequestHeaders.Add("x-api-key", _apiKey);
 
-                return response.IsSuccessStatusCode;
-            }
+                    using var formData = new MultipartFormDataContent();
+                    using var fileContent = new StreamContent(new MemoryStream(file));
+
+                    formData.Add(fileContent, "files", fileNameWithExtension);
+                    var response = client.PostAsync(_externalApiUrl, formData).GetAwaiter().GetResult();
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation($"{fileNameWithExtension} successfully sent to bot");
+                        result = true;
+                    }
+                    else
+                    {
+                        result = false;
+                    }
+                }
+            });
+            return result;
         }
 
         public async Task<DocumentSearchResponseDto> SearchForDocumentId(string requestBody)

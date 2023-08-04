@@ -15,13 +15,15 @@ namespace SF.DataGeneration.BLL.Services
     public class DocumentGenerationService : IDocumentGenerationService
     {
         private readonly ILogger<DocumentGenerationService> _logger;
-        private readonly IDocumentbotStudioApiService _documentbotStudioApiService;        
+        private readonly IDocumentbotStudioApiService _documentbotStudioApiService;
+        private readonly ChromePdfRenderer _pdfRenderer;
 
         public DocumentGenerationService(ILogger<DocumentGenerationService> logger,
                                          IDocumentbotStudioApiService documentbotStudioApiService)
         {
             _logger = logger;
             _documentbotStudioApiService = documentbotStudioApiService;
+            _pdfRenderer = new ChromePdfRenderer();
             License.LicenseKey = "";
         }
 
@@ -114,9 +116,7 @@ namespace SF.DataGeneration.BLL.Services
                 entity.NewText = TextHelperService.GenerateRandomString(entity.OldText);
                 documentText = documentText.Replace(entity.OldText, entity.NewText);
             }
-
-            var renderer = new ChromePdfRenderer();
-            var pdf = renderer.RenderHtmlAsPdf(documentText);
+            var pdf = _pdfRenderer.RenderHtmlAsPdf(documentText);
 
             await using var ms = new MemoryStream(pdf.BinaryData);
             var botResponse = await _documentbotStudioApiService.SendDocumentToBotInStudio(pdf.BinaryData, documentName);
