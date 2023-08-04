@@ -176,23 +176,6 @@ namespace SF.DataGeneration.BLL.Services
                 Value = intentValue
             });
 
-            //foreach (var item in textReplacementList)
-            //{
-            //    var wordIds = new List<int>();
-
-            //    wordIds.Add(documentDetails.DocumentJson.Pages[0].WordLevel.Find(w => w.Text == item.NewText).WordId);
-            //    var word = documentDetails.DocumentJson.Pages[0].WordLevel.Find(w => w.Text == item.NewText);
-
-            //    entities.Add(new DocumentEntityTaggedReadDto
-            //    {
-            //        EntityId = item.EntityId,
-            //        WordIds = wordIds,
-            //        Value = word.Text + word.Space,
-            //        TaggedAuthor = 0,
-            //        DocumentId = documentDetails.Id,
-            //    });
-            //}
-
             foreach (var item in textReplacementList)
             {
                 var wordIds = new List<int>();
