@@ -22,5 +22,11 @@ namespace SF.DataGeneration.Api.Controllers
         {
             await _documentGenerationService.GenerateDocumentsWithExcelData(request, environment);
         }
+
+        [HttpPost("CreateAnnontationSetup", Name = "CreateAnnontationSetup")]
+        public async Task CreateAnnontationSetup(StudioEnvironment environment, Guid documentbotId, string accessToken)
+        {
+            await _documentGenerationService.CreateAnnontationSetup(environment, documentbotId, accessToken);
+        }
     }
 }

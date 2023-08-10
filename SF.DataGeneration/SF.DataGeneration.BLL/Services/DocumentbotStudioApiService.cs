@@ -6,6 +6,7 @@ using SF.DataGeneration.BLL.Interfaces;
 using SF.DataGeneration.Models.Dto.Document;
 using SF.DataGeneration.Models.Enum;
 using SF.DataGeneration.Models.Settings;
+using SF.DataGeneration.Models.StudioApiModels.RequestDto;
 using SF.DataGeneration.Models.StudioApiModels.ResponseDto;
 using System.Net;
 using System.Net.Http.Headers;
@@ -63,10 +64,9 @@ namespace SF.DataGeneration.BLL.Services
         {
             _httpClient.DefaultRequestHeaders.Add("accept", "application/json");
             _httpClient.DefaultRequestHeaders.Add("authorization", req.AccessToken);
-            _documentbotId = req.DocumentbotId;
             _externalApiUrl = req.ExternalApiEndpoint;
             _apiKey = req.ApiKey;
-
+            _documentbotId = req.DocumentbotId;
             switch (environment)
             {
                 case StudioEnvironment.Dev:
@@ -226,5 +226,25 @@ namespace SF.DataGeneration.BLL.Services
                 return false;
             }
         }
+
+        public async Task<bool> UpdateDocumentbotAnnotationShortkeys(DocumentbotShortkeys request)
+        {
+            string url = $"{_documentbotapibaseurl}/annotation/shortkeys";
+
+            using var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
+            HttpResponseMessage response = await SendHttpRequestAsync(url, HttpMethod.Put, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Documentbot annotation shortkeys successfully updated");
+                return true;
+            }
+            else
+            {
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
+                return false;
+            }
+        }
+
     }
 }

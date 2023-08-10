@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 
 namespace SF.DataGeneration.BLL.Helpers
 {
@@ -52,6 +53,16 @@ namespace SF.DataGeneration.BLL.Helpers
             }
 
             return sb.ToString();
+        }
+
+        public static string GenerateRandomColorCode()
+        {
+            var _random = new Random();
+            byte[] colorBytes = new byte[4];
+            _random.NextBytes(colorBytes);
+
+            string colorCode = "#" + BitConverter.ToString(colorBytes).Replace("-", "").Substring(0, 8);
+            return colorCode;
         }
     }
 }
