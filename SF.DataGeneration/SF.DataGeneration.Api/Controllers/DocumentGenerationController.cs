@@ -28,5 +28,11 @@ namespace SF.DataGeneration.Api.Controllers
         {
             await _documentGenerationService.CreateAnnontationSetup(environment, documentbotId, accessToken);
         }
+
+        [HttpPost("MarkDocumentsAsCompleted", Name = "MarkDocumentsAsCompleted")]
+        public async Task MarkSyncedDocumentsAsCompleted(StudioEnvironment environment, Guid documentbotId, string accessToken, string searchText)
+        {
+            await _documentGenerationService.MarkSyncedDocumentsAsCompleted(environment, documentbotId, accessToken, searchText);
+        }
     }
 }

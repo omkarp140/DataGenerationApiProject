@@ -7,5 +7,6 @@ namespace SF.DataGeneration.BLL.Interfaces
     {
         Task GenerateDocumentsWithExcelData(DocumentGenerationUserInputDto request, StudioEnvironment environment);
         Task CreateAnnontationSetup(StudioEnvironment environment, Guid documentbotId, string accessToken);
+        Task MarkSyncedDocumentsAsCompleted(StudioEnvironment environment, Guid documentbotId, string accessToken, string searchText);
     }
 }

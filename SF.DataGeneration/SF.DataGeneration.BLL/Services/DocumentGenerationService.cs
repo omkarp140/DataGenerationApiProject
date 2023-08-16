@@ -289,5 +289,28 @@ namespace SF.DataGeneration.BLL.Services
             }
             await _documentbotStudioApiService.UpdateDocumentbotAnnotationShortkeys(shortKeys);
         }
+
+        public async Task MarkSyncedDocumentsAsCompleted(StudioEnvironment environment, Guid documentbotId, string accessToken, string searchText)
+        {
+            await _documentbotStudioApiService.SetupHttpClientAuthorizationHeaderAndApiUrl(new DocumentGenerationUserInputDto
+            {
+                AccessToken = accessToken,
+                DocumentbotId = documentbotId
+            }, environment);
+
+            var documentSearchRequestDto = new GetDocumentRequestDto()
+            {
+                SearchText = searchText,
+                StartDate = DateTime.ParseExact("1999-12-31T18:30:00.000Z", "yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
+                EndDate = DateTime.UtcNow,
+                PageNumber = 1,
+                PageSize = int.MaxValue
+            };
+
+            var searchResult = await _documentbotStudioApiService.SearchForDocumentId(JsonConvert.SerializeObject(documentSearchRequestDto));
+            var documentIds = searchResult.Result.Records.Select(d => d.Id).ToList();
+            await MarkDocumentsAsCompleted(documentIds);
+        }
+        
     }
 }
