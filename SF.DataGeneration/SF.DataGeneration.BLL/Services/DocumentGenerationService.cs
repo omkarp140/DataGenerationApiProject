@@ -15,7 +15,8 @@ namespace SF.DataGeneration.BLL.Services
     public class DocumentGenerationService : IDocumentGenerationService
     {
         private readonly ILogger<DocumentGenerationService> _logger;
-        private readonly IDocumentbotStudioApiService _documentbotStudioApiService;        
+        private readonly IDocumentbotStudioApiService _documentbotStudioApiService;
+        private Guid _greetingIntentId;
 
         public DocumentGenerationService(ILogger<DocumentGenerationService> logger,
                                          IDocumentbotStudioApiService documentbotStudioApiService)
@@ -38,6 +39,7 @@ namespace SF.DataGeneration.BLL.Services
 
                 // Read the Excel file and fetch entity indices
                 var worksheet = await ReadExcelWorksheet(request.ExcelFilePath);
+                _greetingIntentId = request.GreetingIntentId;
 
                 var entities = await UpdateExcelindicesForEntities(entitiesFromBot, worksheet);
 
@@ -169,7 +171,7 @@ namespace SF.DataGeneration.BLL.Services
 
             intents.Add(new DocumentIntentTaggedReadDto()
             {
-                IntentId = new Guid("c18b3fa8-694e-40d7-baac-bb3ce3ef4035"),
+                IntentId = _greetingIntentId,
                 WordIds = intentWordIds,
                 TaggedAuthor = 1,
                 DocumentId = documentDetails.Id,
