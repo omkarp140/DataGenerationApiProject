@@ -21,7 +21,7 @@ namespace SF.DataGeneration.BLL.Services
         private string _documentbotapibaseurl;
         private Guid _documentbotId;
         private string _externalApiUrl;
-        private string _apiKey;        
+        private string _apiKey;
 
         public DocumentbotStudioApiService(IOptions<StudioApiBaseUrl> studioApiBaseUrl,
                                            HttpClient httpClient,
@@ -62,6 +62,10 @@ namespace SF.DataGeneration.BLL.Services
         public async Task SetupHttpClientAuthorizationHeaderAndApiUrl(DocumentGenerationUserInputDto req, StudioEnvironment environment)
         {
             _httpClient.DefaultRequestHeaders.Add("accept", "application/json");
+            if (_httpClient.DefaultRequestHeaders.Contains("authorization"))
+            {
+                _httpClient.DefaultRequestHeaders.Remove("authorization");
+            }
             _httpClient.DefaultRequestHeaders.Add("authorization", req.AccessToken);
             _documentbotId = req.DocumentbotId;
             _externalApiUrl = req.ExternalApiEndpoint;

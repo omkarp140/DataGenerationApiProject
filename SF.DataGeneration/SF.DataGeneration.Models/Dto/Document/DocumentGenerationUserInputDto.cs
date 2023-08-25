@@ -8,5 +8,6 @@ namespace SF.DataGeneration.Models.Dto.Document
         public string ExcelFilePath { get; set; }
         public string DocumentNamePrefix { get; set; }
         public int NoOfDocumentsToCreate { get; set; }
+        public Guid GreetingIntentId { get; set; }
     }
 }

@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SF.DataGeneration.BLL.Interfaces;
+using SF.DataGeneration.BLL.Services.BackgroundService.DocumentGeneration;
 using SF.DataGeneration.Models.Dto.Document;
 using SF.DataGeneration.Models.Enum;
 
@@ -9,18 +9,19 @@ namespace SF.DataGeneration.Api.Controllers
     [ApiController]
     public class DocumentGenerationController : ControllerBase
     {
-        private readonly IDocumentGenerationService _documentGenerationService;
+        private readonly IDocumentGenerationQueueManager _queueManager;
 
-        public DocumentGenerationController(IDocumentGenerationService documentGenerationService)
+        public DocumentGenerationController(IDocumentGenerationQueueManager queueManager)
         {
-            _documentGenerationService = documentGenerationService;
+            _queueManager = queueManager;
         }
 
 
         [HttpPost("GenerateDocumentsOnBot", Name = "GenerateDocumentsOnBot")]
-        public async Task GenerateDocumentsOnBot(DocumentGenerationUserInputDto request, StudioEnvironment environment)
+        public async Task<IActionResult> GenerateDocumentsOnBot(DocumentGenerationUserInputDto request, StudioEnvironment environment)
         {
-            await _documentGenerationService.GenerateDocumentsWithExcelData(request, environment);
+            await _queueManager.QueueDocumentGenerationJob(new Models.BackgroundJob.DocumentGenerationJobItem() { Environment = environment, Request = request });
+            return Ok();
         }
     }
 }
