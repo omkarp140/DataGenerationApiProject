@@ -11,7 +11,6 @@ using SF.DataGeneration.Models.StudioApiModels.ResponseDto;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using System.Net.Http.Headers;
 
 namespace SF.DataGeneration.BLL.Services
 {
@@ -256,9 +255,8 @@ namespace SF.DataGeneration.BLL.Services
             return await _documentbotStudioApiService.UpdateDocumentTaggingInStudio(JsonConvert.SerializeObject(updateDocumentDetailsRequest), newDocument.DocumentDetails.Id);
         }
 
-        private async Task MarkDocumentsAsCompleted(List<Guid> documentIds)
+        private async Task MarkDocumentsAsCompleted(List<Guid> documentIds, int batchSize)
         {
-            int batchSize = 200;
             int totalBatches = (int)Math.Ceiling((double)documentIds.Count / batchSize);
             for (int batchNumber = 0; batchNumber < totalBatches; batchNumber++)
             {
@@ -309,8 +307,8 @@ namespace SF.DataGeneration.BLL.Services
 
             var searchResult = await _documentbotStudioApiService.SearchForDocumentId(JsonConvert.SerializeObject(documentSearchRequestDto));
             var documentIds = searchResult.Result.Records.Select(d => d.Id).ToList();
-            await MarkDocumentsAsCompleted(documentIds);
+            await MarkDocumentsAsCompleted(documentIds, 2000);
         }
-        
+
     }
 }
