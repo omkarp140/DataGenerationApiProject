@@ -22,5 +22,11 @@ namespace SF.DataGeneration.Api.Controllers
         {
             await _documentGenerationService.GenerateDocumentsWithExcelData(request, environment);
         }
+
+        [HttpPost("SendDocumentsToBotWithoutTagging", Name = "SendDocumentsToBotWithoutTagging")]
+        public async Task SendDocumentsToBotWithoutTagging(DocumentGenerationUserInputDto request, StudioEnvironment environment)
+        {
+            await _documentGenerationService.SendDocumentsToBotWithoutTagging(request, environment);
+        }
     }
 }

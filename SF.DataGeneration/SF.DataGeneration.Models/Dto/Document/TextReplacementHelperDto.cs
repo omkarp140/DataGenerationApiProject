@@ -1,4 +1,6 @@
-﻿namespace SF.DataGeneration.Models.Dto.Document
+﻿using System.Collections.Concurrent;
+
+namespace SF.DataGeneration.Models.Dto.Document
 {
     public class TextReplacementHelperDto
     {
@@ -6,5 +8,20 @@
         public string OldText { get; set; }
         public string NewText { get; set; }
         public string EntityType { get; set; }
+    }
+
+    public class TextReplacementTempDto
+    {
+        public string OldText { get; set; }
+        public string NewText { get; set; }
+        public string EntityType { get; set; }
+
+    }
+
+    public class NewDocumentTempDto
+    {
+        public byte[] BinaryData { get; set; }
+        public string FileName { get; set; }
+        public ConcurrentBag<TextReplacementTempDto> TextReplacementList { get; set; }
     }
 }

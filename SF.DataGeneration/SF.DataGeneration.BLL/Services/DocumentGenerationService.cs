@@ -7,6 +7,7 @@ using SF.DataGeneration.Models.Dto.Document;
 using SF.DataGeneration.Models.Enum;
 using SF.DataGeneration.Models.StudioApiModels.RequestDto;
 using SF.DataGeneration.Models.StudioApiModels.ResponseDto;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 
@@ -17,6 +18,7 @@ namespace SF.DataGeneration.BLL.Services
         private readonly ILogger<DocumentGenerationService> _logger;
         private readonly IDocumentbotStudioApiService _documentbotStudioApiService;
         private Guid _greetingIntentId;
+        private Stopwatch MainSw = new Stopwatch();
 
         public DocumentGenerationService(ILogger<DocumentGenerationService> logger,
                                          IDocumentbotStudioApiService documentbotStudioApiService)
@@ -256,6 +258,97 @@ namespace SF.DataGeneration.BLL.Services
                 var batchDocumentIds = documentIds.Skip(batchNumber * batchSize).Take(batchSize).ToList();
                 var result = await _documentbotStudioApiService.UpdateDocumentStatusAsCompletedInStudio(batchDocumentIds);
             }
+        }
+
+        public async Task SendDocumentsToBotWithoutTagging(DocumentGenerationUserInputDto request, StudioEnvironment environment)
+        {
+            MainSw.Start();
+            try
+            {
+                await _documentbotStudioApiService.SetupHttpClientAuthorizationHeaderAndApiUrl(request, environment);
+
+                var entitiesFromBot = await _documentbotStudioApiService.GetDocumentbotEntitiesFromStudio();
+
+                // Read the Excel file and fetch entity indices
+                var worksheet = await ReadExcelWorksheet(request.ExcelFilePath);
+                _greetingIntentId = request.GreetingIntentId;
+
+                var entities = await UpdateExcelindicesForEntities(entitiesFromBot, worksheet);
+
+                // Generate and send documents based on Excel data
+                await GenerateAndSendDocumentsWithoutTagging(worksheet, request, entities);
+            }
+            catch (Exception ex)
+            {
+                // In case of any failure, log the error and proceed to mark successfully tagged documents as completed.
+                _logger.LogError(ex, "An error occurred while generating documents.");
+            }
+        }
+
+        private async Task GenerateAndSendDocumentsWithoutTagging(ExcelWorksheet worksheet, DocumentGenerationUserInputDto request, List<EntityHelperDto> entities)
+        {
+            for (int row = 2; row <= worksheet.Dimension.Rows; row++)
+            {
+                try
+                {
+                    using var PDFDocument = PdfDocument.FromFile(worksheet.Cells[row, worksheet.Dimension.Columns].Value?.ToString());
+                    string AllText = TextHelperService.CleanTextExtractedFromPdf(PDFDocument.ExtractAllText());
+                    var documents = new ConcurrentBag<NewDocumentTempDto>();
+
+                    var textReplacementList = new ConcurrentBag<TextReplacementTempDto>();
+                    for (int col = 1; col < worksheet.Dimension.Columns; col++)
+                    {
+                        textReplacementList.Add(new TextReplacementTempDto
+                        {
+                            OldText = worksheet.Cells[row, col].Value.ToString(),
+                            EntityType = entities.Find(e => e.ExcelIndex == col).Name
+                        });
+                    }
+                    var docGenSw = Stopwatch.StartNew();
+                    for (int i = 1; i <= request.NoOfDocumentsToCreate; i++)
+                    {
+                        documents.Add(await GenerateDocument(textReplacementList, AllText, $"{request.DocumentNamePrefix}_{row - 1}_DocTest_{i}.pdf"));
+                        //var documentTaggingResult = await RenderDocumentSendToBot(textReplacementList, AllText, $"{request.DocumentNamePrefix}_{row - 1}_DocTest_{i}.pdf");                        
+                    }
+                    docGenSw.Stop();
+                    Console.WriteLine($"Total Time Taken to generate {request.NoOfDocumentsToCreate} documents : {docGenSw.Elapsed.Seconds} seconds");
+                    SendToBot(documents);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"An error occurred while processing document at RowIndex: {row}");
+                }
+            }
+        }
+
+        private async Task<NewDocumentTempDto> GenerateDocument(ConcurrentBag<TextReplacementTempDto> textReplacementList, string AllText, string documentName)
+        {
+            foreach (var entity in textReplacementList)
+            {
+                entity.NewText = TextHelperService.GenerateReadbleRandomData(entity.EntityType);
+                AllText = AllText.Replace(entity.OldText, entity.NewText);
+            }
+
+            var renderer = new ChromePdfRenderer();
+            var pdf = renderer.RenderHtmlAsPdf(AllText);
+
+            return new NewDocumentTempDto()
+            {
+                BinaryData = pdf.BinaryData,
+                FileName = documentName,
+                TextReplacementList = textReplacementList
+            };
+        }
+
+        private void SendToBot(ConcurrentBag<NewDocumentTempDto> documents)
+        {
+            ParallelOptions options = new() { MaxDegreeOfParallelism = Environment.ProcessorCount / 2 };
+            Parallel.ForEach(documents, options, async (document, ct) =>
+            {
+                var botResponse = await _documentbotStudioApiService.SendDocumentToBotInStudio(document.BinaryData, document.FileName);
+            });
+            MainSw.Stop();
+            Console.WriteLine($"Total Time Taken : {MainSw.Elapsed.Minutes} minutes");
         }
     }
 }
