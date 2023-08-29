@@ -22,6 +22,5 @@ namespace SF.DataGeneration.Models.Dto.Document
     {
         public byte[] BinaryData { get; set; }
         public string FileName { get; set; }
-        public ConcurrentBag<TextReplacementTempDto> TextReplacementList { get; set; }
     }
 }

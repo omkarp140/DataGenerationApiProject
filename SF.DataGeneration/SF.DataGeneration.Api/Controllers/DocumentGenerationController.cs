@@ -1,5 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SF.DataGeneration.BLL.Interfaces;
+using SF.DataGeneration.BLL.Services.BackgroundServices.DocumentGeneration;
+using SF.DataGeneration.BLL.Services.BackgroundServices.SendingDocumentsWithoutTagging;
+using SF.DataGeneration.Models.BackgroundJob.DocumentGeneration;
+using SF.DataGeneration.Models.BackgroundJob.DocumentSending;
 using SF.DataGeneration.Models.Dto.Document;
 using SF.DataGeneration.Models.Enum;
 
@@ -9,24 +12,29 @@ namespace SF.DataGeneration.Api.Controllers
     [ApiController]
     public class DocumentGenerationController : ControllerBase
     {
-        private readonly IDocumentGenerationService _documentGenerationService;
+        private readonly IDocumentGenerationQueueManager _documentGenerationQueueManager;
+        private readonly IDocumentSendingQueueManager _documentSendingQueueManager;
 
-        public DocumentGenerationController(IDocumentGenerationService documentGenerationService)
+        public DocumentGenerationController(IDocumentGenerationQueueManager documentGenerationQueueManager,
+                                            IDocumentSendingQueueManager documentSendingQueueManager)
         {
-            _documentGenerationService = documentGenerationService;
+            _documentGenerationQueueManager = documentGenerationQueueManager;
+            _documentSendingQueueManager = documentSendingQueueManager;
         }
 
 
         [HttpPost("GenerateDocumentsOnBot", Name = "GenerateDocumentsOnBot")]
-        public async Task GenerateDocumentsOnBot(DocumentGenerationUserInputDto request, StudioEnvironment environment)
+        public async Task<IActionResult> GenerateDocumentsOnBot(DocumentGenerationUserInputDto request, StudioEnvironment environment)
         {
-            await _documentGenerationService.GenerateDocumentsWithExcelData(request, environment);
+            await _documentGenerationQueueManager.QueueDocumentGenerationJob(new DocumentGenerationBackgroundJob() { Request = request, Environment = environment });
+            return Ok();
         }
 
         [HttpPost("SendDocumentsToBotWithoutTagging", Name = "SendDocumentsToBotWithoutTagging")]
-        public async Task SendDocumentsToBotWithoutTagging(DocumentGenerationUserInputDto request, StudioEnvironment environment)
+        public async Task<IActionResult> SendDocumentsToBotWithoutTagging(DocumentGenerationUserInputDto request, StudioEnvironment environment)
         {
-            await _documentGenerationService.SendDocumentsToBotWithoutTagging(request, environment);
+            await _documentSendingQueueManager.QueueDocumentSendingJob(new DocumentSendingBackgroundJob() { Request = request, Environment = environment });
+            return Ok();
         }
     }
 }

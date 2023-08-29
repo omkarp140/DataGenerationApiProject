@@ -335,8 +335,7 @@ namespace SF.DataGeneration.BLL.Services
             return new NewDocumentTempDto()
             {
                 BinaryData = pdf.BinaryData,
-                FileName = documentName,
-                TextReplacementList = textReplacementList
+                FileName = documentName
             };
         }
 
