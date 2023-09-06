@@ -6,6 +6,7 @@ using SF.DataGeneration.BLL.Interfaces;
 using SF.DataGeneration.Models.Dto.Document;
 using SF.DataGeneration.Models.Enum;
 using SF.DataGeneration.Models.Settings;
+using SF.DataGeneration.Models.StudioApiModels.RequestDto;
 using SF.DataGeneration.Models.StudioApiModels.ResponseDto;
 using System.Net;
 using System.Net.Http.Headers;
@@ -225,6 +226,67 @@ namespace SF.DataGeneration.BLL.Services
                 _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
                 return false;
             }
+        }
+
+        public async Task<bool> UpdateDocumentbotAnnotationShortkeys(DocumentbotShortkeys request)
+        {
+            string url = $"{_documentbotapibaseurl}/annotation/shortkeys";
+
+            using var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
+            HttpResponseMessage response = await SendHttpRequestAsync(url, HttpMethod.Put, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Documentbot annotation shortkeys successfully updated");
+                return true;
+            }
+            else
+            {
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
+                return false;
+            }
+        }
+
+        public async Task<List<IntentHelperDto>> GetDocumentbotIntentsFromStudio()
+        {
+            string url = $"{_documentbotapibaseurl}/intentstructure/GetIntentsAndIntentFolders";
+            var intentResponse = new IntentResponseDto();
+
+            HttpResponseMessage response = await SendHttpRequestAsync(url, HttpMethod.Get);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                intentResponse = JsonConvert.DeserializeObject<IntentResponseDto>(responseContent);
+                _logger.LogInformation("Intents successfully fetched from bot");
+            }
+            else
+            {
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
+            }
+
+            return intentResponse.Result[0].Intents;
+        }
+
+        public async Task<List<DocumentTypeHelperDto>> GetDocumentTypesFromStudio()
+        {
+            string url = $"{_documentbotapibaseurl}/DocumentType/GetDocumentTypes?pageNumber=1&pageSize=20&name=&sort=Order%20asc";
+            var documentTypeResponse = new DocumentTypeResponseDto();
+
+            HttpResponseMessage response = await SendHttpRequestAsync(url, HttpMethod.Get);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                documentTypeResponse = JsonConvert.DeserializeObject<DocumentTypeResponseDto>(responseContent);
+                _logger.LogInformation("Document Types successfully fetched from bot");
+            }
+            else
+            {
+                _logger.LogError($"Error: {response.StatusCode} \n Description: {await response.Content.ReadAsStringAsync()}");
+            }
+
+            return documentTypeResponse.Result.Records;
         }
     }
 }
