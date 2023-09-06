@@ -5,6 +5,7 @@ using SF.DataGeneration.BLL.Helpers;
 using SF.DataGeneration.BLL.Interfaces;
 using SF.DataGeneration.Models.Dto.Document;
 using SF.DataGeneration.Models.Enum;
+using SF.DataGeneration.Models.StudioApiModels.Other;
 using SF.DataGeneration.Models.StudioApiModels.RequestDto;
 using SF.DataGeneration.Models.StudioApiModels.ResponseDto;
 using System.Diagnostics;
@@ -54,7 +55,7 @@ namespace SF.DataGeneration.BLL.Services
             finally
             {
                 // Mark the successfully tagged documents as completed
-                await MarkDocumentsAsCompleted(successfullyTaggedDocumentIds);
+                await MarkDocumentsAsCompleted(successfullyTaggedDocumentIds, 2000);
                 sw.Stop();
                 _logger.LogInformation($"{request.NoOfDocumentsToCreate} documents sent & tagged on bot in - {sw.Elapsed.Minutes} minutes.");
             }
@@ -181,15 +182,95 @@ namespace SF.DataGeneration.BLL.Services
             return await _documentbotStudioApiService.UpdateDocumentTaggingInStudio(JsonConvert.SerializeObject(updateDocumentDetailsRequest), documentDetails.Id);
         }
 
-        private async Task MarkDocumentsAsCompleted(List<Guid> documentIds)
+        private async Task MarkDocumentsAsCompleted(List<Guid> documentIds, int batchSize)
         {
-            int batchSize = 200;
             int totalBatches = (int)Math.Ceiling((double)documentIds.Count / batchSize);
             for (int batchNumber = 0; batchNumber < totalBatches; batchNumber++)
             {
                 var batchDocumentIds = documentIds.Skip(batchNumber * batchSize).Take(batchSize).ToList();
                 var result = await _documentbotStudioApiService.UpdateDocumentStatusAsCompletedInStudio(batchDocumentIds);
             }
+        }
+
+        public async Task CreateAnnontationSetup(StudioEnvironment environment, Guid documentbotId, string accessToken)
+        {
+            var random = new Random();
+            var shortKeys = new DocumentbotShortkeys();
+            await _documentbotStudioApiService.SetupHttpClientAuthorizationHeaderAndApiUrl(new DocumentGenerationUserInputDto
+            {
+                AccessToken = accessToken,
+                DocumentbotId = documentbotId
+            }, environment);
+
+            var documentTypes = await _documentbotStudioApiService.GetDocumentTypesFromStudio();
+            documentTypes.RemoveAll(x => x.Type != 0); //0 is enum for Ordinary document type ItemGenericTypeEnum in studio
+            var entitiesFromBot = await _documentbotStudioApiService.GetDocumentbotEntitiesFromStudio();
+            var intentsFromBot = await _documentbotStudioApiService.GetDocumentbotIntentsFromStudio();
+
+            var alphanumericCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var shortKeysOptions = alphanumericCharacters.ToList();
+
+            foreach (var documentType in documentTypes)
+            {
+                var shortkeyTemp = shortKeysOptions[random.Next(0, shortKeysOptions.Count())];
+                shortKeysOptions.Remove(shortkeyTemp);
+                shortKeys.DocumentTypeShortkeys.Add(new ShortKeyConfig
+                {
+                    Id = documentType.Id,
+                    BackgroundColour = TextHelperService.GenerateRandomColorCode(),
+                    ForegroundColour = "#000",
+                    ShortKey = shortkeyTemp
+                });
+            }
+
+            foreach (var entity in entitiesFromBot)
+            {
+                var shortkeyTemp = shortKeysOptions[random.Next(0, shortKeysOptions.Count())];
+                shortKeysOptions.Remove(shortkeyTemp);
+                shortKeys.EntityShortkeys.Add(new ShortKeyConfig
+                {
+                    Id = entity.Id,
+                    BackgroundColour = TextHelperService.GenerateRandomColorCode(),
+                    ForegroundColour = "#000",
+                    ShortKey = shortkeyTemp
+                });
+            }
+
+            foreach (var intent in intentsFromBot)
+            {
+                var shortkeyTemp = shortKeysOptions[random.Next(0, shortKeysOptions.Count())];
+                shortKeysOptions.Remove(shortkeyTemp);
+                shortKeys.IntentShortkeys.Add(new ShortKeyConfig
+                {
+                    Id = intent.Id,
+                    BackgroundColour = TextHelperService.GenerateRandomColorCode(),
+                    ForegroundColour = "#000",
+                    ShortKey = shortkeyTemp
+                });
+            }
+            await _documentbotStudioApiService.UpdateDocumentbotAnnotationShortkeys(shortKeys);
+        }
+
+        public async Task MarkSyncedDocumentsAsCompleted(StudioEnvironment environment, Guid documentbotId, string accessToken, string searchText)
+        {
+            await _documentbotStudioApiService.SetupHttpClientAuthorizationHeaderAndApiUrl(new DocumentGenerationUserInputDto
+            {
+                AccessToken = accessToken,
+                DocumentbotId = documentbotId
+            }, environment);
+
+            var documentSearchRequestDto = new GetDocumentRequestDto()
+            {
+                SearchText = searchText,
+                StartDate = DateTime.ParseExact("1999-12-31T18:30:00.000Z", "yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
+                EndDate = DateTime.UtcNow,
+                PageNumber = 1,
+                PageSize = int.MaxValue
+            };
+
+            var searchResult = await _documentbotStudioApiService.SearchForDocumentId(JsonConvert.SerializeObject(documentSearchRequestDto));
+            var documentIds = searchResult.Result.Records.Select(d => d.Id).ToList();
+            await MarkDocumentsAsCompleted(documentIds, 2000);
         }
     }
 }

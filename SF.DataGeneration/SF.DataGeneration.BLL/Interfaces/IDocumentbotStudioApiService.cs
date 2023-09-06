@@ -1,5 +1,6 @@
 ﻿using SF.DataGeneration.Models.Dto.Document;
 using SF.DataGeneration.Models.Enum;
+using SF.DataGeneration.Models.StudioApiModels.RequestDto;
 using SF.DataGeneration.Models.StudioApiModels.ResponseDto;
 
 namespace SF.DataGeneration.BLL.Interfaces
@@ -13,5 +14,8 @@ namespace SF.DataGeneration.BLL.Interfaces
         Task<DocumentDetailsResponseDto> GetDocumentDetailsFromStudio(Guid documentId);
         Task<bool> UpdateDocumentTaggingInStudio(string request, Guid documentId);        
         Task<bool> UpdateDocumentStatusAsCompletedInStudio(IEnumerable<Guid> documentIds);
+        Task<bool> UpdateDocumentbotAnnotationShortkeys(DocumentbotShortkeys request);
+        Task<List<IntentHelperDto>> GetDocumentbotIntentsFromStudio();
+        Task<List<DocumentTypeHelperDto>> GetDocumentTypesFromStudio();
     }
 }
