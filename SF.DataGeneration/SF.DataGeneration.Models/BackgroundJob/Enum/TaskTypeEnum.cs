@@ -2,6 +2,7 @@
 {
     public enum TaskTypeEnum
     {
-        DocumentGeneration = 1
+        DocumentGeneration = 1,
+        EmailDataGeneration = 2
     }
 }

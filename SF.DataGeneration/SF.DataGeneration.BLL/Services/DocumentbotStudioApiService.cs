@@ -60,13 +60,13 @@ namespace SF.DataGeneration.BLL.Services
             return result;
         }
 
-        public async Task SetupHttpClientAuthorizationHeaderAndApiUrl(DocumentGenerationUserInputDto req, StudioEnvironment environment)
+        public async Task SetupHttpClientAuthorizationHeaderAndApiUrl(DocumentGenerationUserInputDto request, StudioEnvironment environment)
         {
             _httpClient.DefaultRequestHeaders.Add("accept", "application/json");
-            _httpClient.DefaultRequestHeaders.Add("authorization", req.AccessToken);
-            _documentbotId = req.DocumentbotId;
-            _externalApiUrl = req.ExternalApiEndpoint;
-            _apiKey = req.ApiKey;
+            _httpClient.DefaultRequestHeaders.Add("authorization", request.AccessToken);
+            _documentbotId = request.DocumentbotId;
+            _externalApiUrl = request.ExternalApiEndpoint;
+            _apiKey = request.ApiKey;
 
             switch (environment)
             {
