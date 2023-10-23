@@ -7,7 +7,7 @@ namespace SF.DataGeneration.BLL.Interfaces
 {
     public interface IDocumentbotStudioApiService
     {
-        Task SetupHttpClientAuthorizationHeaderAndApiUrl(DocumentGenerationUserInputDto accessToken, StudioEnvironment environment);
+        Task SetupHttpClientAuthorizationHeaderAndApiUrl(DocumentGenerationUserInputDto request, StudioEnvironment environment);
         Task<List<EntityHelperDto>> GetDocumentbotEntitiesFromStudio();
         Task<bool> SendDocumentToBotInStudio(byte[] file, string fileNameWithExtension);
         Task<DocumentSearchResponseDto> SearchForDocumentId(string requestBody);

@@ -2,7 +2,9 @@
 using SF.DataGeneration.BLL.Interfaces;
 using SF.DataGeneration.BLL.Services;
 using SF.DataGeneration.BLL.Services.BackgroundServices.DocumentGeneration;
+using SF.DataGeneration.BLL.Services.BackgroundServices.EmailDataGeneration;
 using SF.DataGeneration.Models.BackgroundJob.DocumentGeneration;
+using SF.DataGeneration.Models.BackgroundJob.EmailDataGeneration;
 using SF.DataGeneration.Models.Settings;
 
 namespace SF.DataGeneration.Api.Helpers
@@ -13,6 +15,8 @@ namespace SF.DataGeneration.Api.Helpers
         {
             services.AddScoped<IDocumentGenerationService, DocumentGenerationService>();
             services.AddSingleton<IDocumentbotStudioApiService, DocumentbotStudioApiService>();
+            services.AddScoped<IEmailDataGenerationService, EmailDataGenerationService>();
+            services.AddSingleton<IEmailBotStudioApiService, EmailBotStudioApiService>();
         }
 
         public static void BindApiSettings(this IServiceCollection services, IConfiguration configuration)
@@ -25,6 +29,10 @@ namespace SF.DataGeneration.Api.Helpers
             services.AddHostedService<DocumentGenerationBackgroundService>();
             services.AddScoped<IDocumentGenerationQueueManager, DocumentGenerationQueueManager>();
             services.AddSingleton<BackgroundChannel<DocumentGenerationBackgroundJob>>();
+
+            services.AddHostedService<EmailDataGenerationBackgroundService>();
+            services.AddScoped<IEmailDataGenerationQueueManager, EmailDataGenerationQueueManager>();
+            services.AddSingleton<BackgroundChannel<EmailDataGenerationBackgroundJob>>();
         }
     }
 }

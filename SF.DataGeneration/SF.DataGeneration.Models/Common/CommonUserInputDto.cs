@@ -1,6 +1,4 @@
-﻿using SF.DataGeneration.Models.Enum;
-
-namespace SF.DataGeneration.Models.Common
+﻿namespace SF.DataGeneration.Models.Common
 {
     public class CommonUserInputDto
     {
